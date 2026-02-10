@@ -3,7 +3,8 @@ from tkinter import ttk
 from database import addPriceTracker, getAllRecordsFromDB, get_most_recent_record
 from urllib.parse import urlparse
 from datetime import datetime
-from utils.priceComparitor import comparePrice
+from utils.notification import on_price_drop
+from utils.priceComparitor import compare_price
 
 from utils.fetcher import fetch_product_page
 from utils.price_extractor import extract_bunnings_product_details
@@ -38,12 +39,13 @@ def handle_sale_check():
     )
 
     # Compare with previous price
-    is_on_sale = comparePrice(new_observation, product)
+    priceComparison = compare_price(new_observation, product)
     
-    if is_on_sale:
+    if priceComparison.onSale:
         print(f"{new_observation.productName} is on sale!")
         # Optional: update UI, e.g., highlight row
         highlight_row(product.productName, "green")
+        on_price_drop(product.productName, priceComparison.old_price, priceComparison.new_price, product.url)
     else:
         print(f"{new_observation.productName} is not on sale.")
         highlight_row(product.productName, "white")
