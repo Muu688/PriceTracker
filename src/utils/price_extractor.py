@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class PriceNotFoundError(Exception):
     pass
 
-def extract_product_details(html: str) -> tuple[str, float]:
+def extract_bunnings_product_details(html: str) -> tuple[str, float]:
     soup = BeautifulSoup(html, "html.parser")
 
     script = soup.find("script", id="__NEXT_DATA__", type="application/json")

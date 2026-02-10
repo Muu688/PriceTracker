@@ -1,5 +1,7 @@
+from datetime import datetime
+from typing import Optional
 from tinydb import TinyDB, Query
-from product import Product
+from Models.product import Product
 
 db = TinyDB('prices.json')
 prices = db.table("price_checks")
@@ -37,14 +39,21 @@ def addPriceTracker(product: Product):
             "history": [observation]
         })
 
-def get_most_recent_record(productName: str):
-    # Work in progress - non functional - should return the most recent record
-    records = prices.search(
-        lambda r: r["productName"] == productName
-    )
+def get_most_recent_record(productName: str) -> Optional[Product]:
+    record = prices.get(ProductQuery.productName == productName)
 
-    if not records:
+    if not record:
         return None
 
-    records.sort(key=lambda r: r["timestamp"], reverse=True)
-    return records[0]
+    history = record.get("history", [])
+    if not history:
+        return None
+
+    latest = history[-1]  # append-only = most recent
+
+    return Product(
+        productName=record["productName"],
+        url=record["url"],
+        price=latest["price"],
+        dateObserved=latest["dateObserved"]
+    )

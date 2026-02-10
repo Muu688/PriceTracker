@@ -1,12 +1,58 @@
 from tkinter import *
 from tkinter import ttk
-from database import addPriceTracker, getAllRecordsFromDB
+from database import addPriceTracker, getAllRecordsFromDB, get_most_recent_record
 from urllib.parse import urlparse
 from datetime import datetime
+from utils.priceComparitor import comparePrice
 
 from utils.fetcher import fetch_product_page
 from utils.price_extractor import extract_bunnings_product_details
-from product import Product
+from Models.product import Product
+
+def highlight_row(product_name, color):
+    for item_id in tree.get_children():
+        if tree.item(item_id, "values")[0] == product_name:
+            tree.item(item_id, tags=("highlight",))
+            tree.tag_configure("highlight", background=color)
+
+def update_treeview_row(product: Product):
+    for item_id in tree.get_children():
+        if tree.item(item_id, "values")[0] == product.productName:
+            tree.item(item_id, values=(product.productName, product.price, product.dateObserved))
+
+def handle_sale_check():
+    product = get_selected_product()
+    if not product:
+        print("No product selected.")
+        return
+    
+    html = fetch_product_page(product.url)
+    product_name, price = extract_bunnings_product_details(html)
+        
+    # Create a Product object for the new observation
+    new_observation = Product(
+        productName=product_name,
+        url=product.url,
+        price=price,
+        dateObserved=datetime.today().strftime('%Y-%m-%d')
+    )
+
+    # Compare with previous price
+    is_on_sale = comparePrice(new_observation, product)
+    
+    if is_on_sale:
+        print(f"{new_observation.productName} is on sale!")
+        # Optional: update UI, e.g., highlight row
+        highlight_row(product.productName, "green")
+    else:
+        print(f"{new_observation.productName} is not on sale.")
+        highlight_row(product.productName, "white")
+    
+    # Update DB with new observation
+    addPriceTracker(new_observation)
+    
+    # Refresh UI to reflect latest price/date
+    update_treeview_row(new_observation)
 
 def build_tracked_products_tab(parent):
     columns = ("name", "latest_price", "last_seen")
@@ -93,7 +139,22 @@ def handle_add_tracking():
 
     except Exception as e:
         status_label.config(text=str(e), foreground="red")
-        
+
+def get_selected_product():
+    selected = tree.selection()
+    if not selected:
+        return None
+    
+    # Treeview item id
+    item_id = selected[0]
+    values = tree.item(item_id, "values")
+    
+    # Assuming column order: Product, Latest Price ($), Last Seen
+    product_name = values[0]
+    most_recent_record = get_most_recent_record(product_name)
+    return most_recent_record
+
+
 root = Tk()
 root.title("Price Tracker")
 root.geometry("900x600")
@@ -131,5 +192,11 @@ ttk.Button(
     tab_add,
     text="Add Price Tracking",
     command=handle_add_tracking
+).pack(pady=10)
+
+ttk.Button(
+    tab_table,
+    text="Check for Sales (Manual)",
+    command=handle_sale_check
 ).pack(pady=10)
 root.mainloop()
