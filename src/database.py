@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 from tinydb import TinyDB, Query
 from Models.product import Product
 
@@ -8,6 +8,28 @@ prices = db.table("price_checks")
 
 def getAllRecordsFromDB():
     return prices.all()
+
+def get_all_products() -> List[Product]:
+    records = prices.all()
+    products: List[Product] = []
+
+    for record in records:
+        history = record.get("history", [])
+        if not history:
+            continue  # skip products with no price history
+
+        latest = history[-1]  # append-only means newest last
+
+        products.append(
+            Product(
+                productName=record["productName"],
+                url=record["url"],
+                price=latest["price"],
+                dateObserved=latest["dateObserved"]
+            )
+        )
+
+    return products
 
 ProductQuery = Query()
 

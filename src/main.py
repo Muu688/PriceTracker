@@ -1,6 +1,6 @@
 from tkinter import *
 from tkinter import ttk
-from database import addPriceTracker, getAllRecordsFromDB, get_most_recent_record
+from database import addPriceTracker, getAllRecordsFromDB, get_most_recent_record, get_all_products
 from urllib.parse import urlparse
 from datetime import datetime
 from utils.notification import on_price_drop
@@ -9,6 +9,38 @@ from utils.priceComparitor import compare_price
 from utils.fetcher import fetch_product_page
 from utils.price_extractor import extract_bunnings_product_details
 from Models.product import Product
+
+def update_all_products():
+    products = get_all_products()
+    for product in products:
+        html = fetch_product_page(product.url)
+        product_name, price = extract_bunnings_product_details(html)
+
+        # Create a Product object for the new observation
+        new_observation = Product(
+            productName=product_name,
+            url=product.url,
+            price=price,
+            dateObserved=datetime.today().strftime('%Y-%m-%d')
+        )
+
+        # Compare with previous price
+        priceComparison = compare_price(new_observation, product)
+        
+        if priceComparison.onSale:
+            print(f"{new_observation.productName} is on sale!")
+            # Optional: update UI, e.g., highlight row
+            highlight_row(product.productName, "green")
+            on_price_drop(product.productName, priceComparison.old_price, priceComparison.new_price, product.url)
+        else:
+            print(f"{new_observation.productName} is not on sale.")
+            highlight_row(product.productName, "white")
+        
+        # Update DB with new observation
+        addPriceTracker(new_observation)
+        
+        # Refresh UI to reflect latest price/date
+        update_treeview_row(new_observation)
 
 def highlight_row(product_name, color):
     for item_id in tree.get_children():
@@ -198,7 +230,13 @@ ttk.Button(
 
 ttk.Button(
     tab_table,
-    text="Check for Sales (Manual)",
+    text="Check for Sales for Product Selected(Manual)",
     command=handle_sale_check
+).pack(pady=10)
+
+ttk.Button(
+    tab_table,
+    text="Check for Sales Across ALL products (Manual)",
+    command=update_all_products
 ).pack(pady=10)
 root.mainloop()
