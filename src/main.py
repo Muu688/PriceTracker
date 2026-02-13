@@ -7,14 +7,14 @@ from utils.notification import on_price_drop
 from utils.priceComparitor import compare_price
 
 from utils.fetcher import fetch_product_page
-from utils.price_extractor import extract_bunnings_product_details
+from utils.price_extractor import extract_bunnings_product_details, extractor
 from Models.product import Product
 
 def update_all_products():
     products = get_all_products()
     for product in products:
         html = fetch_product_page(product.url)
-        product_name, price = extract_bunnings_product_details(html)
+        product_name, price = extractor(product.url, html)
 
         # Create a Product object for the new observation
         new_observation = Product(
@@ -60,7 +60,7 @@ def handle_sale_check():
         return
     
     html = fetch_product_page(product.url)
-    product_name, price = extract_bunnings_product_details(html)
+    product_name, price = extractor(product.url, html)
         
     # Create a Product object for the new observation
     new_observation = Product(
@@ -113,7 +113,6 @@ def load_products(tree):
     tree.delete(*tree.get_children())
     records = getAllRecordsFromDB()
     for record in records:
-        print(record)
         latest = record["history"][-1]
         tree.insert(
             "",
@@ -130,8 +129,8 @@ def is_valid_url(url: str) -> bool:
     parsed = urlparse(url)
     return all([parsed.scheme in ("http", "https"), parsed.netloc])
 
-def is_bunnings_url(url: str) -> bool:
-    return "bunnings.com.au" in url.lower()
+def is_supported_url(url: str) -> bool:
+    return "bunnings.com.au" in url.lower() or "jbhifi.com.au" in url.lower()
 
 def handle_add_tracking():
     url = url_var.get().strip()
@@ -147,17 +146,16 @@ def handle_add_tracking():
         return
 
     # C: Bunnings only
-    if not is_bunnings_url(url):
-        status_label.config(text="Only Bunnings URLs are supported", foreground="red")
+    if not is_supported_url(url):
+        status_label.config(text="Only Bunnings/JB Hi-fi URLs are supported", foreground="red")
         return
 
     status_label.config(text="Fetching product details...", foreground="black")
     tab_add.update_idletasks()
 
     try:
-        # ---- your existing flow ----
         html = fetch_product_page(url)
-        product_name, price = extract_bunnings_product_details(html)
+        product_name, price = extractor(url, html)
         product = Product(
             productName=product_name,
             url=url,

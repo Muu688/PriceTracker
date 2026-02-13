@@ -9,7 +9,6 @@ notifier = NotificationService([
 ])
 
 def on_price_drop(product_name, old_price, new_price, product_url):
-    print(WEBHOOK_URL)
     notifier.notify_all(
         title="Price Drop Detected",
         message=f"**{product_name}** just got cheaper!",
